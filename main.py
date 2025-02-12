@@ -3,6 +3,11 @@ from tkinter import messagebox
 import random
 import pyperclip
 import json
+from cryptography.fernet import Fernet
+
+# Generate a key for encryption (for production, save this key securely)
+key = Fernet.generate_key()
+cipher_suite = Fernet(key)
 # ---------------------------- PASSWORD GENERATOR ------------------------------- #
 #Password Generator Project
 def generate_password():
@@ -34,59 +39,55 @@ def generate_password():
 
 # ---------------------------- SAVE PASSWORD ------------------------------- #
 
+
+
 def save():
     email = user_input.get()
     website = web_input.get()
     password = pass_input.get()
-    new_data = {website: {
-        "email": email,
-        "password": password,
-    }
-    }
-
-
 
     if len(website) == 0 or len(password) == 0:
-            messagebox.showerror(title="Oops", message= "Please don't leave any fields empty!")
+        messagebox.showerror(title="Oops", message="Please don't leave any fields empty!")
     else:
-         try:
+        # Encrypt the password before saving
+        encrypted_password = cipher_suite.encrypt(password.encode())
+
+        new_data = {website: {
+            "email": email,
+            "password": encrypted_password.decode()  # Store as a string
+        }}
+
+        try:
             with open("data.json", "r") as data_file:
-                # Reading old data
                 data = json.load(data_file)
-         except FileNotFoundError:
-             with open("data.json","w") as data_file:
-                 json.dump(new_data, data_file, indent=4)
-         else:
-                # Updating old data with new data
-             data.update(new_data)
+        except FileNotFoundError:
+            with open("data.json", "w") as data_file:
+                json.dump(new_data, data_file, indent=4)
+        else:
+            data.update(new_data)
+            with open("data.json", "w") as data_file:
+                json.dump(data, data_file, indent=4)
 
-             with open("data.json","w") as data_file:
-                    # Saving updated data
-                    json.dump(data,data_file,indent = 4)
-
-
-         user_input.delete(0,END)
-         web_input.delete(0,END)
-         pass_input.delete(0,END)
+        user_input.delete(0, END)
+        web_input.delete(0, END)
+        pass_input.delete(0, END)
 
 def find_password():
-    email = user_input.get()
     website = web_input.get()
 
     try:
-        with open("data.json","r") as data_file:
+        with open("data.json", "r") as data_file:
             data = json.load(data_file)
-
     except FileNotFoundError:
-            messagebox.showerror(title = "File not found",message= "This file does not exist!")
-
+        messagebox.showerror(title="File not found", message="This file does not exist!")
     else:
         if website in data:
-            mail = data[website][("email")]
-            password = data[website]["password"]
-            messagebox.showinfo(title=website, message=f"Email: {mail}\nPassword: {password}")
+            email = data[website]["email"]
+            encrypted_password = data[website]["password"]
+            decrypted_password = cipher_suite.decrypt(encrypted_password.encode()).decode()
+            messagebox.showinfo(title=website, message=f"Email: {email}\nPassword: {decrypted_password}")
         else:
-            messagebox.showerror(title= "Error", message= f"No records exist for {website}")
+            messagebox.showerror(title="Error", message=f"No records exist for {website}")
 
 # ---------------------------- UI SETUP ------------------------------- #
 # Window
